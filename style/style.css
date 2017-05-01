@@ -1,0 +1,86 @@
+
+body,
+html {
+	margin:0;
+	padding:0;
+	color:#000;
+	background:#ddd;
+}
+#wrap {
+	width:976px;
+	margin:0 auto;
+	background:white;
+	border: 1px black dotted;
+}
+#header {
+	padding:5px 10px;
+	background:white;
+	border: 1px black dotted;
+	border-top-style:none;
+	border-left-style:none;
+	border-right-style:none;
+}
+h1 {
+	margin:0;
+}
+#main {
+	float:left;
+	width:600px;
+	padding:5px;
+	bborder: 1px black dotted;
+	border-top-style:none;
+	border-bottom-style:none;
+	border-left-style:none;
+	font-size: small;
+
+}
+h2 {
+	margin:0 0 1em;
+}
+#sidebar {
+	float:right;
+	width:350px;
+	padding:5px;
+	background:white;
+	border: 1px black dotted;
+	border-top-style:none;
+	border-bottom-style:none;
+	border-right-style:none;
+
+	font-size: small;
+
+}
+#viz {
+	width:976px;
+	height:900px;
+	clear:both;
+	padding:5px 10px;
+	background:white;
+	border: 1px black dotted;
+	border-top-style:1px black dotted;
+	border-bottom-style:none;
+	border-left-style:none;
+	border-right-style:none;
+
+}
+
+#footer {
+	clear:both;
+	padding:5px 10px;
+	background:white;
+	border: 1px black dotted;
+	border-top-style:1px black dotted;
+	border-bottom-style:none;
+	border-left-style:none;
+	border-right-style:none;
+}
+#footer p {
+	margin:0;
+}
+* html #footer {
+	height:1px;
+}
+
+#outputbox {
+	overflow-wrap: normal
+   }

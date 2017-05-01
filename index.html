@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>Compact shRNA Design Tool</title>
+	<link href="style/style.css" rel="stylesheet" type="text/css" />
+	<script src="lib/jquery-1.10.2.js"></script>
+<!--	<script src="lib/RNAfold_fold.js"></script> -->
+<script>
+if (!String.prototype.trim) {
+  String.prototype.trim = function () {
+    return this.replace(/^\s+|\s+$/g, '');
+  };
+}
+
+String.prototype.replaceAt = function(index, character) {
+    return this.substr(0, index) + character + this.substr(index+1);
+};
+
+function reverseComplement(s)
+{
+	var s = s.split("").reverse();
+	for (var i=0,len=s.length; i<len; i++)
+	{
+		switch (s[i])
+		{
+			case "A":
+				s[i] = "T";
+				break;
+			case "T":
+				s[i] = "A";
+				break;
+			case "C":
+				s[i] = "G";
+				break;
+			case "G":
+				s[i] = "C";
+				break;
+		}
+	} 
+	return s.join("");
+}
+function reverseTranscribe(s)
+{
+	var s = s.split("")
+	for (var i=0,len=s.length; i<len; i++)
+	{
+		switch (s[i])
+		{
+			case "A":
+				s[i] = "A";
+				break;
+			case "T":
+				s[i] = "T";
+				break;
+			case "C":
+				s[i] = "C";
+				break;
+			case "G":
+				s[i] = "G";
+				break;
+			case "U":
+				s[i] = "T";
+				break;
+		}
+	} 
+	return s.join("");
+}
+function correctBlvSecondaryStructure(s)
+{
+	return s;
+}
+function checkRepetitiveSequence(s)
+{
+	var isRepetitive = false;
+
+	// Check for more than 4 of same nucleotide in row
+	var count = 0;
+	var s = s.split("");
+	var previousChar = "";
+	for (var i=0,len=s.length; i<len; i++)
+	{
+		if (s[i] == previousChar)
+		{
+			count++;
+		}
+		else
+		{
+			count = 1;
+		}
+		
+		if (count > 4)
+		{
+			isRepetitive = true;
+			break;
+		}
+		previousChar = s[i]
+	}
+
+	// Check for more than 3 dinucleotide repeats
+	if (!isRepetitive)
+	{
+		for (var i=0,len=s.length; i<len; i++)
+		{
+			if (i > 6)
+			{
+				if (s[i-1]+s[i] == s[i-3]+s[i-2] && s[i-1]+s[i] == s[i-5]+s[i-4] && s[i-1]+s[i] == s[i-7]+s[i-6])
+				{
+					isRepetitive = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return isRepetitive;
+}
+function calcGCPercentage(s)
+{
+	var count = 0;
+	var GCCount = 0;
+	var GCPercentage = 0;
+	var s = s.split("");
+	for (var i=0,len=s.length; i<len; i++)
+	{
+		if (s[i] == "G" || s[i] == "C")
+		{
+			GCCount++;
+		}
+		count++;
+	}
+	GCPercentage = GCCount / count * 100;
+	return GCPercentage;
+}
+
+function generateshRNA()
+{
+	// Define vars
+	var blvLoop = "CTTAGTGGAATAG";
+	var blvTerminator = "TCTTCTT";
+	var blvBBox = "GCTGCCAGCACCGAGTTCGAACACAGC";
+	var blvUpstreamSequence = "TTCACGCACCCTC";
+	
+	// Define RegExps
+	var inputRegExp = new RegExp("^[ATCG]+$", "");
+	//var blvTargetRegExp = new RegExp("[ATCG]{9}[CT][AG]{2}[ATCG]{5}[CT][AG]{2}", "g");
+	//var blvLikeRegExp = new RegExp("[CT]{2}[AG][ATCG]{5}[CT]{2}[AG][ATCG]{9}", "g");
+	var blvTargetRegExp = new RegExp("[ATCG]{9}[CT][AG]{2}[ATCG]{6}[AG]{2}", "g");
+	//var blvLikeRegExp = new RegExp("[CT]{2}[ATCG]{6}[CT]{2}[AG][ATCG]{9}", "g");
+	var terminatorLikeRegExp = new RegExp("TTTT|TTT.T|T.TTT|TT.TT", "g");
+	
+	// Get input
+	var inputText = document.getElementById("inputbox").value.toUpperCase().replace(/U/g,"T").trim().replace(/(\r\n|\n|\r| |\t)/gm,"");;
+	var numEval = parseInt(document.getElementById("num_eval").value.trim());
+	var maxGC = parseFloat(document.getElementById("max_gc").value.trim());
+	var minGC = parseFloat(document.getElementById("min_gc").value.trim());
+	var checkRepetitive = document.getElementById("cbox_repetitive").checked;
+	var checkTerminator = document.getElementById("cbox_terminator").checked;
+	var check5U = document.getElementById("cbox_5U").checked;
+	var check3pairing = document.getElementById("cbox_3pairing").checked;
+	var checkABox2 = document.getElementById("cbox_abox2").checked;
+	var checkFlanking = document.getElementById("cbox_flanking").checked;
+
+	if (checkFlanking)
+	{
+		blvUpstreamSequence = "CCTTCGACCCTGCCCTTGACACCCCCGTGTTTCACGCACCCTC";
+	}
+
+	//var blvTargetRegExp = new RegExp("[ATCG]{9}[CT][AG]{2}[ATCG]{6}[AG]{2}", "g");
+	//var blvsiRNARegExp = new RegExp("[ATCG]{9}[CT][AG]{2}[ATCG]{6}[AG]{2}", "g");
+
+	// Check input
+	if (inputText != "")
+	{
+		if (inputRegExp.exec(inputText))
+		{
+			document.getElementById("inputbox").value = inputText;
+			var outString = "";
+			var count = 0;
+			while( count < numEval && (matches = blvTargetRegExp.exec(inputText)))
+			{
+
+				var target = matches[0]
+				var siRNA = reverseComplement(target);
+				var arm3p = JSON.parse(JSON.stringify(siRNA));
+				var arm5p = "A" + reverseComplement(arm3p);
+
+				// Force A Box Positions
+				arm5p = arm5p.replaceAt(10, "T");
+				arm5p = arm5p.replaceAt(12, "G");
+				
+				arm5p = arm5p.replaceAt(19, "G");
+				arm5p = arm5p.replaceAt(20, "G");
+				// Remove character
+				arm5p = arm5p.replaceAt(4, "");
+
+				var cshRNA = blvUpstreamSequence + arm5p + blvLoop + arm3p + blvTerminator + blvBBox
+				
+				var internalTerminator = false;
+				var repetitive = false;
+				var GCOK = false;
+				
+				//Check for problem sequences
+				if (checkTerminator)
+				{
+					internalTerminator = terminatorLikeRegExp.exec(arm3p) + terminatorLikeRegExp.exec(arm5p)
+				}
+				if (checkRepetitive)
+				{
+					repetitive = checkRepetitiveSequence(arm3p);
+				}
+
+				var GCPercentage = calcGCPercentage(arm3p);
+				if (GCPercentage >= minGC && GCPercentage <= maxGC)
+				{
+					GCOK = true;
+				}
+				var UOK = true;
+				if (check5U)
+				{
+					if (arm3p[0] != 'T')
+					{
+						UOK = false;
+					}
+				}
+				var pairingOK = true;
+				if (check3pairing)
+				{
+					pairingOK = false;
+					
+					if (matches.index >= 2 )
+					{
+						adjacentSeq = inputText[matches.index-3] + inputText[matches.index-2] + inputText[matches.index-1];
+						if (adjacentSeq == "AGA")
+						{
+							pairingOK = true;
+							siRNA = siRNA + "TCT"
+						}
+					}
+				}
+				var ABox2OK = true;
+				if (checkABox2)
+				{
+					ABox2OK = false;
+					arm5p = arm5p.replaceAt(18, "T");
+					if (siRNA[2] == 'A' || siRNA[2] == 'G')
+					{
+						ABox2OK = true;
+					}
+
+				}
+
+				
+				
+				// Update where to restart matching (this will also become the 1-based position of the last match
+				blvTargetRegExp.lastIndex = matches.index + 1;
+
+				if (!internalTerminator && !repetitive && GCOK && UOK && pairingOK && ABox2OK)
+				{
+					count++;
+					outString = outString +count + ',' + blvTargetRegExp.lastIndex + ',' + reverseComplement(siRNA) + "," + siRNA + "," + cshRNA + "\n";
+					
+				}
+				
+			}
+			if (outString == "")
+			{
+				document.getElementById("outputbox").value = "";
+				$("#downloadLink").html("");
+				window.alert("No suitable sequences were found.");
+			}
+			else
+			{
+				outString = "ID,Position,Targeted Seq,siRNA Seq,cshRNA Seq\n" + outString
+				document.getElementById("outputbox").value = outString;
+				var download = outString.replace(/(\r?\n){1,}/g, '\n');
+
+				window.URL = window.URL || window.webkiURL;
+				var blob = new Blob([download]);
+				var blobURL = window.URL.createObjectURL(blob);
+				$("#downloadLink").html("");
+				$("<a></a>").
+				attr("href", blobURL).
+				attr("download", "data.csv").
+				text("Download Data").
+				appendTo('#downloadLink');
+				
+			}
+		}
+		else
+		{
+			document.getElementById("outputbox").value = "";
+			$("#downloadLink").html("");
+			window.alert("Input contains invalid characters. Input only A,T/U,C,G.");
+		}
+	}
+	else
+	{
+		document.getElementById("outputbox").value = "";
+		$("#downloadLink").html("");
+		window.alert("Please input target sequence.");
+	}
+	
+}
+</script>
+<meta http-equiv="cache-control" content="no-cache, must-revalidate, post-check=0, pre-check=0">
+<meta http-equiv="expires" content="Sat, 31 Oct 2014 00:00:00 GMT">
+<meta http-equiv="pragma" content="no-cache">
+</head>
+<body></br>
+<div id="wrap">
+<div id="header">
+<h3></h3>
+<H1>Compact shRNA Design Tool</H1>
+<h4>
+Sullivan Lab. Department of Molecular Biosciences. The University of Texas at Austin.<BR>
+</h4>
+</div>
+<div id="main">
+
+<p>
+<H2>Enter Target Sequence</H2>
+<textarea name="inputbox"  id="inputbox" cols="80" rows="5"></textarea>
+</p>
+
+<p>
+<H2>Output Design</H2>
+<textarea name="outputbox" id="outputbox" cols="80" rows="16" wrap="soft"></textarea>
+
+</p>
+
+</div>
+	<div id="sidebar">
+	<p>
+<H2>Options</H2>
+<H3>Promoter Architecture </H3>
+<select name="arch">
+<option value="blv">BLV-like</option>
+<!-- <option value="foamy">Foamy-like</option> -->
+</select>
+
+<H3>Cutoffs</H3>
+Max Hits: <input type="text" name="num_eval" size="3" value="5000" id="num_eval"><br>
+Max GC %: <input type="text" name="max_gc" size="3" value="70" id="max_gc"><br>
+Min GC %: <input type="text" name="min_gc" size="3" value="30" id="min_gc"><br>
+<input type="checkbox" id="cbox_terminator" value="Yes"> Exclude Internal Terminator-like<br>
+<input type="checkbox" id="cbox_repetitive" value="Yes"> Exclude Repetitive Sequences<br>
+<input type="checkbox" id="cbox_abox2" value="Yes"> Maintain A Box 2<br>
+<input type="checkbox" id="cbox_5U" value="Yes"> Require 5' U<br>
+<input type="checkbox" id="cbox_3pairing" value="Yes"> Require 3' Pairing<br>
+<input type="checkbox" id="cbox_flanking" value="Yes"> Add 5' Flanking Sequence
+
+
+
+</p>
+</br>
+<button type="button" onclick="generateshRNA()">Generate shRNA</button>
+</br>
+<p><H3><div id="downloadLink"></div></H3></p>
+
+	</div>
+<div id="footer" >
+		<center><p>Cite: Burke et al. "Expression of short hairpin RNAs using compact retroviral miRNA gene architecture" <i>In Prep.</i></p></center>
+</div>
+
+</div>
+</br>
+</body>
+</html>
+
+
+
+
